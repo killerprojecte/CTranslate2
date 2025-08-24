@@ -1,6 +1,32 @@
 #include "cuda/utils.h"
 #include "dequantize.cuh"
+#ifdef CT2_USE_HIP
+#include <hip/hip_runtime.h>
+#include <hipblas/hipblas.h>
+#define cudaMemcpyAsync hipMemcpyAsync
+#define cudaMemcpyDeviceToDevice hipMemcpyDeviceToDevice
+#define cudaMemcpyDeviceToHost hipMemcpyDeviceToHost
+#define cudaMemcpyHostToDevice hipMemcpyHostToDevice
+#define cublasSgemm hipblasSgemm
+#define CUBLAS_OP_T HIPBLAS_OP_T
+#define CUBLAS_OP_N HIPBLAS_OP_N
+#define cudaDataType_t  hipDataType
+#define cublasComputeType_t hipblasComputeType_t
+#define CUDA_R_16F HIP_R_16F
+#define CUBLAS_COMPUTE_16F HIPBLAS_COMPUTE_16F 
+#define CUBLAS_COMPUTE_32F HIPBLAS_COMPUTE_32F
+#define CUBLAS_COMPUTE_32I HIPBLAS_COMPUTE_32I
+#define CUDA_R_32F HIP_R_32F
+#define CUDA_R_16BF HIP_R_16BF
+#define cublasGemmEx hipblasGemmEx_v2
+#define CUDA_R_8I HIP_R_8I
+#define CUDA_R_32I HIP_R_32I
+#define CUBLAS_GEMM_DEFAULT_TENSOR_OP HIPBLAS_GEMM_DEFAULT
+#define cublasSgemmStridedBatched hipblasSgemmStridedBatched
+#define cublasGemmStridedBatchedEx hipblasGemmStridedBatchedEx_v2
+#else
 #include <cublas_v2.h>
+#endif
 #include <ctranslate2/ops/awq/gemm.h>
 
 namespace ctranslate2 {
@@ -137,7 +163,7 @@ namespace ctranslate2 {
             asm volatile(
               "{ .reg .u64 addr; cvta.to.shared.u64 addr, %1; cvt.u32.u64 %0, addr; }\n"
               : "=r"(addr)
-              : "l"((void *)((&(A_shared[(k_0_1 * 16)])) + (((((int)threadIdx.x) & 15) * 40) + ((((int)threadIdx.x) >> 4) * 8))))
+              : "v"((void *)((&(A_shared[(k_0_1 * 16)])) + (((((int)threadIdx.x) & 15) * 40) + ((((int)threadIdx.x) >> 4) * 8))))
               );
 
 
@@ -155,7 +181,7 @@ namespace ctranslate2 {
               asm volatile(
                 "{ .reg .u64 addr; cvta.to.shared.u64 addr, %1; cvt.u32.u64 %0, addr; }\n"
                 : "=r"(addr)
-                : "l"((void *)((&(B_shared[(((k_0_1 * 2176) + (((int)threadIdx.y) * 64)) + (ax1_0 * 16))])) + (((((int)threadIdx.x) & 15) * 136) + ((((int)threadIdx.x) >> 4) * 8))))
+                : "v"((void *)((&(B_shared[(((k_0_1 * 2176) + (((int)threadIdx.y) * 64)) + (ax1_0 * 16))])) + (((((int)threadIdx.x) & 15) * 136) + ((((int)threadIdx.x) >> 4) * 8))))
                 );
               asm volatile(
                 "ldmatrix.sync.aligned.m8n8.x4.trans.shared.b16"
@@ -171,48 +197,48 @@ namespace ctranslate2 {
           asm volatile(
             "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32"
             "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};\n"
-            :  "=f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[3])
-            : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[0]), "f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "f"(((float *)(C_warp + (j_0_4 * 8)))[3]));
+            :  "=v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[3])
+            : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[0]), "v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "v"(((float *)(C_warp + (j_0_4 * 8)))[3]));
         }
 
         {
           asm volatile(
             "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32"
             "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};\n"
-            :  "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
-            : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[0]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
+            :  "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
+            : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[0]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
         }
 
         {
           asm volatile(
             "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32"
             "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};\n"
-            :  "=f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[3])
-            : "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[1]), "f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "f"(((float *)(C_warp + (j_0_4 * 8)))[3]));
+            :  "=v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[3])
+            : "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[1]), "v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "v"(((float *)(C_warp + (j_0_4 * 8)))[3]));
         }
 
         {
           asm volatile(
             "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32"
             "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};\n"
-            :  "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
-            : "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[1]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
+            :  "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
+            : "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[1]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
         }
 #else
             {
               asm volatile(
                 "mma.sync.aligned.m16n8k16.row.col.f32.f16.f16.f32"
                 "{%0, %1, %2, %3}, {%4, %5, %6, %7}, {%8, %9}, {%10, %11, %12, %13};\n"
-                :  "=f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[3])
-                : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[0]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[1]), "f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "f"(((float *)(C_warp + (j_0_4 * 8)))[3]));
+                :  "=v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[3])
+                : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[0]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[1]), "v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "v"(((float *)(C_warp + (j_0_4 * 8)))[3]));
             }
 
             {
               asm volatile(
                 "mma.sync.aligned.m16n8k16.row.col.f32.f16.f16.f32"
                 "{%0, %1, %2, %3}, {%4, %5, %6, %7}, {%8, %9}, {%10, %11, %12, %13};\n"
-                :  "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
-                : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[0]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[1]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
+                :  "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
+                : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[0]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[1]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
             }
 #endif
           }
@@ -370,7 +396,7 @@ namespace ctranslate2 {
             asm volatile(
               "{ .reg .u64 addr; cvta.to.shared.u64 addr, %1; cvt.u32.u64 %0, addr; }\n"
               : "=r"(addr)
-              : "l"((void *)((&(A_shared[(k_0_1 * 16)])) + (((((int)threadIdx.x) & 15) * 40) + ((((int)threadIdx.x) >> 4) * 8))))
+              : "v"((void *)((&(A_shared[(k_0_1 * 16)])) + (((((int)threadIdx.x) & 15) * 40) + ((((int)threadIdx.x) >> 4) * 8))))
               );
             asm volatile(
               "ldmatrix.sync.aligned.m8n8.x4.shared.b16"
@@ -388,7 +414,7 @@ namespace ctranslate2 {
               asm volatile(
                 "{ .reg .u64 addr; cvta.to.shared.u64 addr, %1; cvt.u32.u64 %0, addr; }\n"
                 : "=r"(addr)
-                : "l"((void *)((&(B_shared[(((k_0_1 * 1152) + (((int)threadIdx.y) * 32)) + (ax1_0 * 16))])) + (((((int)threadIdx.x) & 15) * 72) + ((((int)threadIdx.x) >> 4) * 8))))
+                : "v"((void *)((&(B_shared[(((k_0_1 * 1152) + (((int)threadIdx.y) * 32)) + (ax1_0 * 16))])) + (((((int)threadIdx.x) & 15) * 72) + ((((int)threadIdx.x) >> 4) * 8))))
                 );
               asm volatile(
                 "ldmatrix.sync.aligned.m8n8.x4.trans.shared.b16"
@@ -406,48 +432,48 @@ namespace ctranslate2 {
           asm volatile(
             "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32"
             "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};\n"
-            :  "=f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[3])
-            : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[0]), "f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "f"(((float *)(C_warp + (j_0_4 * 8)))[3]));
+            :  "=v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[3])
+            : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[0]), "v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "v"(((float *)(C_warp + (j_0_4 * 8)))[3]));
         }
 
         {
           asm volatile(
             "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32"
             "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};\n"
-            :  "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
-            : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[0]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
+            :  "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
+            : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[0]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
         }
 
         {
           asm volatile(
             "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32"
             "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};\n"
-            :  "=f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[3])
-            : "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[1]), "f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "f"(((float *)(C_warp + (j_0_4 * 8)))[3]));
+            :  "=v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[3])
+            : "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[1]), "v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "v"(((float *)(C_warp + (j_0_4 * 8)))[3]));
         }
 
         {
           asm volatile(
             "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32"
             "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};\n"
-            :  "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
-            : "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[1]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
+            :  "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
+            : "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[1]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
         }
 #else
             {
               asm volatile(
                 "mma.sync.aligned.m16n8k16.row.col.f32.f16.f16.f32"
                 "{%0, %1, %2, %3}, {%4, %5, %6, %7}, {%8, %9}, {%10, %11, %12, %13};\n"
-                :  "=f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=f"(((float *)(C_warp + (j_0_4 * 8)))[3])
-                : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[0]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[1]), "f"(((float *)(C_warp + (j_0_4 * 8)))[0]), "f"(((float *)(C_warp + (j_0_4 * 8)))[1]), "f"(((float *)(C_warp + (j_0_4 * 8)))[2]), "f"(((float *)(C_warp + (j_0_4 * 8)))[3]));
+                :  "=v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "=v"(((float *)(C_warp + (j_0_4 * 8)))[3])
+                : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[0]), "r"(((unsigned *)(B_shared_warp + (j_0_4 * 8)))[1]), "v"(((float *)(C_warp + (j_0_4 * 8)))[0]), "v"(((float *)(C_warp + (j_0_4 * 8)))[1]), "v"(((float *)(C_warp + (j_0_4 * 8)))[2]), "v"(((float *)(C_warp + (j_0_4 * 8)))[3]));
             }
 
             {
               asm volatile(
                 "mma.sync.aligned.m16n8k16.row.col.f32.f16.f16.f32"
                 "{%0, %1, %2, %3}, {%4, %5, %6, %7}, {%8, %9}, {%10, %11, %12, %13};\n"
-                :  "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
-                : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[0]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[1]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "f"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
+                :  "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "=v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3])
+                : "r"(((unsigned *)(A_shared_warp + 0))[0]), "r"(((unsigned *)(A_shared_warp + 0))[1]), "r"(((unsigned *)(A_shared_warp + 0))[2]), "r"(((unsigned *)(A_shared_warp + 0))[3]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[0]), "r"(((unsigned *)(B_shared_warp + ((j_0_4 * 8) + 4)))[1]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[0]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[1]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[2]), "v"(((float *)(C_warp + ((j_0_4 * 8) + 4)))[3]));
             }
 #endif
           }
