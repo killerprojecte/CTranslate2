@@ -4,11 +4,76 @@
 
 ### Fixes and improvements
 
+## [v4.7.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.1) (2026-02-04)
+
+* Fix Windows build (#2007) [@sssshhhhhh](https://github.com/sssshhhhhh)
+
+### New features
+
+* Introduce AMD GPU support with ROCm HIP (#1989) [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Compatibility with Transformers v5 (#1999) by [@jordimas](https://github.com/jordimas)
+
+## Fixes and improvements
+
+* Assume less about whisper vocab (#2000) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Use LLVM ThreadSanitizer instead of Google (#1993) by [@3manifold](https://github.com/3manifold)
+* Optimize all builds with parallel execution (#1992) by [@3manifold](https://github.com/3manifold)
+* Remove unecessary zero init from conv1d (#1990) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Integrate Clang AddressSanitizer in tests (#1903) by [@3manifold](https://github.com/3manifold)
+* Enable multiple of 16 padding for INT8 Tensor Cores (#1982) by [@Purfview](https://github.com/Purfview)
+* Add activation and dilation to conv1d (#1979) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Minor refactor to CMakeLists.txt (#1980) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Remove unnecessary check from wav2vec2 (#1977) by [@plan9better](https://github.com/plan9better)
+* Add optional residual add to gemm op (#1975) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Implement cuda layernorm axis (#1971) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Fix Eole conversion (#1998) by [@vince62s](https://github.com/vince62s)
+* Gemma 3 conversion improvements (#1991) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Add causal flag to fa2 (#1976) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Fixes cross attention tests and refactors code (#1974) by [@jordimas](https://github.com/jordimas)
+* Fix CUDA bf16 median filter (#1972) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Fix various compiler warnings (#1970) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+
+
+## [v4.6.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.3) (2026-01-06)
+
+### New features
+
+* T5Gemma model conversion and inference (#1962) by [@jordimas](https://github.com/jordimas)
+* Support for CUDA 12.8 (#1937, #1940) by [@Purfview](https://github.com/Purfview)
+* Conv1d pure CUDA implementation (#1949), makes cuDNN an optional dependency by [@jordimas](https://github.com/jordimas)
+* Add CUDA implementation for median filter (#1917) by [@ja2d8a4v](https://github.com/a2d8a4v)
+
+### Fixes and improvements
+
+* Fix issue- tokens batch_type may exceed max_batch_size (#1948) by [@anterart](https://github.com/anterart)
+* Fixes AWQ support for Qwen 2.5/3 and Phi3 (#1951, #1952, #1953) by [@BBC-Esq](https://github.com/BBC-Esq)
+
+## [v4.6.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.2) (2025-12-05)
+
+### New features
+
+* Qwen 3 support (#1943) by [@jordimas](https://github.com/jordimas)
+* Gemma 3 text support (#1936) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Fixed pkg_resources Deprecated Warning (#1911) by [@thawancomt](https://github.com/thawancomt)
+* Disable INT8 for sm120 - Blackwell GPUs (#1937) by [@Purfview](https://github.com/Purfview)
+* FIX: package libctranslate2.so in wheel to avoid build fail (#1920) by [@yzewei](https://github.com/yzewei)
+
+## [v4.6.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.1) (2025-11-07)
+
+### New features
+
+* Python 3.14 support (#1926)
+* Support for Cuda 12.4 (#1925)
+* Update Intel oneAPI to version 2025.3 (#1931)
+
 ## [v4.6.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.0) (2025-04-08)
 Note: The Ctranslate2 Python package now supports python 3.13, drop the support for python 3.8.
 
 ### New features
-* Pyhton 3.13 support (#1858)
+* Python 3.13 support (#1858)
 * Support returning hidden vector in Wav2Vec2 and Wav2Vec2Bert Models (#1867)
 * Add noexecstack linker flags (#1852 + #1861)
 * Support Qwen2 (#1820)

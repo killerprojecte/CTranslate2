@@ -8,7 +8,6 @@
 #include <curand_kernel.h>
 #endif
 
-
 namespace ctranslate2 {
   namespace cuda {
 

@@ -9,7 +9,6 @@
 #include <cub/block/block_scan.cuh>
 #endif
 
-
 #include "cuda/helpers.h"
 #include "cuda/random.h"
 

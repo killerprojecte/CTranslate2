@@ -333,7 +333,7 @@ namespace ctranslate2 {
       }
     }
 
-    void Dense::operator()(const StorageView& input, StorageView& output) const {
+    void Dense::operator()(const StorageView& input, StorageView& output, const StorageView* residual) const {
       PROFILE("Dense");
       const StorageView* qscale = _partial_qscale.empty() ? _qscale : &_partial_qscale;
       const StorageView* weight = _partial_weight.empty() ? &_weight : &_partial_weight;
@@ -343,8 +343,10 @@ namespace ctranslate2 {
                                          : &_partial_u8_shift_compensation);
 
       bool affected_by_tp = ScopedMPISetter::getNRanks() > 1 && _is_layer_out;
-      if (affected_by_tp && ScopedMPISetter::getCurRank() != 0)
+      if (affected_by_tp && ScopedMPISetter::getCurRank() != 0) {
         bias = nullptr;
+        residual = nullptr;
+      }
       if (_quantized_gemm) {
         const auto device = input.device();
         StorageView qinput(_weight.dtype(), device);
@@ -392,8 +394,11 @@ namespace ctranslate2 {
                        /*trans_b=*/true,
                        output,
                        bias);
+      if (residual)
+          ops::Add()(*residual, output, output);
+      }
       } else {
-        _gemm_op(input, *weight, output, nullptr, bias);
+        _gemm_op(input, *weight, output, nullptr, bias, residual);
       }
     }
 
@@ -433,8 +438,9 @@ namespace ctranslate2 {
                    dim_t stride,
                    dim_t padding,
                    dim_t dilation,
-                   dim_t groups)
-      : _conv_op(stride, padding, dilation, groups)
+                   dim_t groups,
+                   const ops::ActivationType* activation_type)
+      : _conv_op(stride, padding, dilation, groups, activation_type)
       , _weight(model.get_variable(scope + "/weight"))
       , _bias(model.get_variable_if_exists(scope + "/bias"))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale")) {

@@ -20,7 +20,7 @@
 #define CUBLAS_STATUS_EXECUTION_FAILED HIPBLAS_STATUS_EXECUTION_FAILED
 #define CUBLAS_STATUS_INTERNAL_ERROR   HIPBLAS_STATUS_INTERNAL_ERROR
 #define CUBLAS_STATUS_NOT_SUPPORTED    HIPBLAS_STATUS_NOT_SUPPORTED
-#define CUBLAS_STATUS_LICENSE_ERROR    HIPBLAS_STATUS_UNKNOWN + 1 //so this is never reached
+#define CUBLAS_STATUS_LICENSE_ERROR    HIPBLAS_STATUS_UNKNOWN
 #define cudaStreamDefault hipStreamDefault
 #define cudaGetDevice hipGetDevice
 #define cudaStreamCreate hipStreamCreate
@@ -28,6 +28,8 @@
 #define cublasCreate hipblasCreate
 #define cublasDestroy hipblasDestroy
 #define cublasSetStream hipblasSetStream
+#define cudaMalloc hipMalloc
+#define cudaFree hipFree
 #define cudaGetDeviceCount hipGetDeviceCount
 #define cudaSuccess hipSuccess
 #define cudaGetDeviceProperties hipGetDeviceProperties
@@ -200,6 +202,23 @@ namespace ctranslate2 {
       return *device_prop;
     }
 
+#ifdef CT2_USE_HIP
+    // https://rocm.docs.amd.com/en/latest/reference/precision-support.html
+    // All archs supported by ROCm 7 support the following precisions
+
+    bool gpu_supports_int8(int device) {
+      return true;
+    }
+
+    bool gpu_has_int8_tensor_cores(int device) {
+      return true;
+    }
+
+    bool gpu_has_fp16_tensor_cores(int device) {
+      return true;
+    }
+#else
+
     // See docs.nvidia.com/deeplearning/sdk/tensorrt-support-matrix/index.html
     // for hardware support of reduced precision.
     #ifdef CT2_USE_HIP
@@ -230,7 +249,7 @@ namespace ctranslate2 {
       const cudaDeviceProp& device_prop = get_device_properties(device);
       return device_prop.major >= 7;
     }
-    #endif
+#endif
 
     bool have_same_compute_capability(const std::vector<int>& devices) {
       if (devices.size() > 1) {

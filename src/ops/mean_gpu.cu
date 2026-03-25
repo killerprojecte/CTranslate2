@@ -7,7 +7,6 @@
 #include <cub/block/block_reduce.cuh>
 #endif
 
-
 #include "type_dispatch.h"
 #include "cuda/helpers.h"
 

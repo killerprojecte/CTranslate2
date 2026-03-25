@@ -5,6 +5,7 @@ option(INSTALL_GTEST "" OFF)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../third_party/googletest ${CMAKE_CURRENT_BINARY_DIR}/googletest)
 
 add_executable(ctranslate2_test
+  attention_test.cc
   batching_test.cc
   decoding_test.cc
   layers_test.cc
@@ -29,11 +30,14 @@ add_executable(benchmark_ops
 target_link_libraries(benchmark_ops PRIVATE
   ${PROJECT_NAME}
   )
+if(NOT MSVC)
+  target_compile_options(benchmark_ops PRIVATE -Wno-unused-result)
+endif()
 
 if(WITH_CUDA)
   target_link_libraries(benchmark_ops PRIVATE ${CUDA_LIBRARIES})
-endif()
-if(WITH_HIP)
+
+elseif(WITH_HIP)
   enable_language(HIP)
   list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH})
   link_directories(${ROCM_PATH}/lib)
@@ -48,11 +52,5 @@ if(WITH_HIP)
   add_compile_definitions(__HIP_PLATFORM_HCC__)
   target_include_directories(benchmark_ops PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/include ${ROCM_PATH}/include /include)
   target_link_libraries(benchmark_ops PRIVATE hiprand roc::hipblas roc::rocprim roc::rocthrust hip::hipcub)
-
-  if(WITH_CUDNN)
-    find_package(miopen)
-    target_link_libraries(benchmark_ops PRIVATE MIOpen)	  
-    add_definitions(-DCT2_WITH_CUDNN)
-endif()
 
 endif()
